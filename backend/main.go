@@ -6,9 +6,9 @@ import (
 	"log"
 	"math"
 	"net/http"
-	"strconv"
 
 	"github.com/gorilla/mux"
+	"github.com/rs/cors"
 )
 
 type CalculationRequest struct {
@@ -23,13 +23,27 @@ type CalculationResponse struct {
 
 func main() {
 	r := mux.NewRouter()
-	r.HandleFunc("/calculate", calculateHandler).Methods("POST")
+	r.HandleFunc("/calculate", calculateHandler).Methods("POST", "OPTIONS")
 	
+	// Create a new CORS handler
+	c := cors.New(cors.Options{
+		AllowedOrigins: []string{"http://localhost:3000"}, // Allow requests from React app
+		AllowedMethods: []string{"POST", "GET", "OPTIONS"},
+		AllowedHeaders: []string{"Content-Type", "Origin", "Accept", "*"},
+	})
+
+	// Wrap the router with the CORS handler
+	handler := c.Handler(r)
+
 	fmt.Println("Server is running on :8080")
-	log.Fatal(http.ListenAndServe(":8080", r))
+	log.Fatal(http.ListenAndServe(":8080", handler))
 }
 
 func calculateHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "OPTIONS" {
+		return
+	}
+
 	var req CalculationRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
